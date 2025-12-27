@@ -1,0 +1,15 @@
+algotrading/
+├── agent_trader.py
+│
+├── agents.py
+├── rate_limiter.py
+├── alpaca_stub.py
+├── state.py
+├── crew.py
+├── tasks.py
+│
+├── backtest.py
+│
+├── tests/
+│   ├── test_risk_manager.py
+│   └── test_rate_limiter.py
