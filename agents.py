@@ -4,6 +4,28 @@ from typing import Dict, List, Literal
 from datetime import datetime, timedelta
 
 from models import Portfolio, Trade, RiskDecision, Signal, RiskConfig
+from cache import SimpleCache
+
+news_cache = SimpleCache(ttl_seconds=60 * 60)
+from data_providers import fetch_market_price
+from agents import Signal
+
+
+def trend_agent(symbols):
+    signals = []
+    for symbol in symbols:
+        price = fetch_market_price(symbol)
+
+        if price > 100:
+            signals.append(
+                Signal(symbol, action="BUY", confidence=0.6)
+            )
+        else:
+            signals.append(
+                Signal(symbol, action="SELL", confidence=0.6)
+            )
+
+    return signals
 
 # ---------- Risk Manager (TDD) ----------
 
