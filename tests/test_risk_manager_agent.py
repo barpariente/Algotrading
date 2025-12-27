@@ -17,7 +17,7 @@ def test_approves_safe_buy():
 
     decisions = agent.evaluate_trades(
         portfolio=portfolio,
-        proposed_trades=[trade],
+        trades=[trade],
         trade_history=[]
     )
 
@@ -40,7 +40,7 @@ def test_adjusts_trade_when_exceeding_max_exposure():
 
     decisions = agent.evaluate_trades(
         portfolio=portfolio,
-        proposed_trades=[trade],
+        trades=[trade],
         trade_history=[]
     )
 
@@ -63,7 +63,7 @@ def test_rejects_trade_if_cash_below_reserve():
 
     decisions = agent.evaluate_trades(
         portfolio=portfolio,
-        proposed_trades=[trade],
+        trades=[trade],
         trade_history=[]
     )
 
@@ -84,7 +84,7 @@ def test_adjusts_sell_to_owned_amount():
 
     decisions = agent.evaluate_trades(
         portfolio=portfolio,
-        proposed_trades=[trade],
+        trades=[trade],
         trade_history=[]
     )
 
@@ -112,7 +112,7 @@ def test_rejects_trades_when_trade_limit_exceeded():
 
     decisions = agent.evaluate_trades(
         portfolio=portfolio,
-        proposed_trades=[trade],
+        trades=[trade],
         trade_history=trade_history
     )
 

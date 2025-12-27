@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from typing import Dict, List, Literal
 
 @dataclass
 class Portfolio:
@@ -33,3 +35,10 @@ class RateLimitConfig:
     per_second: int
     per_hour: int
     per_day: int
+
+@dataclass
+class RiskConfig:
+    max_exposure_pct: float = 0.3
+    max_trade_pct: float = 0.1
+    min_cash_pct: float = 0.1
+    max_trades_per_hour: int = 5

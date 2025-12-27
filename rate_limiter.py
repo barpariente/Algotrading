@@ -1,21 +1,27 @@
 from datetime import datetime, timedelta
 from collections import defaultdict
+from models import RateLimitConfig
+
 
 class RateLimiter:
-    def __init__(self, per_second, per_hour, per_day):
-        self.limits = per_second, per_hour, per_day
+    def __init__(self, config: RateLimitConfig):
+        self.config = config
         self.calls = defaultdict(list)
 
     def allow(self, key: str, now: datetime) -> bool:
-        sec, hour, day = self.limits
-        times = [t for t in self.calls[key] if t > now - timedelta(days=1)]
+        times = [
+            t for t in self.calls[key]
+            if t > now - timedelta(days=1)
+        ]
         self.calls[key] = times
 
-        if sum(t > now - timedelta(seconds=1) for t in times) >= sec:
+        if sum(t > now - timedelta(seconds=1) for t in times) >= self.config.per_second:
             return False
-        if sum(t > now - timedelta(hours=1) for t in times) >= hour:
+
+        if sum(t > now - timedelta(hours=1) for t in times) >= self.config.per_hour:
             return False
-        if len(times) >= day:
+
+        if len(times) >= self.config.per_day:
             return False
 
         self.calls[key].append(now)

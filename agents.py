@@ -3,28 +3,22 @@ from dataclasses import dataclass
 from typing import Dict, List, Literal
 from datetime import datetime, timedelta
 
-from models import Portfolio, Trade, RiskDecision, Signal
+from models import Portfolio, Trade, RiskDecision, Signal, RiskConfig
 
 # ---------- Risk Manager (TDD) ----------
 
 class RiskManagerAgent:
     def __init__(
         self,
-        max_exposure_pct=0.3,
-        max_trade_pct=0.1,
-        min_cash_pct=0.1,
-        max_trades_per_hour=5,
+        config: RiskConfig,
     ):
-        self.max_exposure_pct = max_exposure_pct
-        self.max_trade_pct = max_trade_pct
-        self.min_cash_pct = min_cash_pct
-        self.max_trades_per_hour = max_trades_per_hour
+        self.config = config
 
     def evaluate_trades(
         self,
         portfolio: Portfolio,
-        trades: List[Trade],
-        trade_history: List[datetime],
+        trades: list[Trade],
+        trade_history: list[datetime],
     ) -> List[RiskDecision]:
 
         now = datetime.utcnow()
@@ -33,7 +27,35 @@ class RiskManagerAgent:
         decisions = []
 
         for trade in trades:
-            if len(recent_trades) >= self.max_trades_per_hour:
+            if trade.side == "SELL":
+                owned_amount = portfolio.holdings.get(trade.symbol, 0)
+
+                if owned_amount <= 0:
+                    decisions.append(
+                        RiskDecision(
+                            trade.symbol,
+                            trade.side,
+                            False,
+                            0,
+                            "No holdings to sell",
+                        )
+                    )
+                    continue
+
+                final_amount = min(trade.amount, owned_amount)
+
+                decisions.append(
+                    RiskDecision(
+                        trade.symbol,
+                        trade.side,
+                        True,
+                        final_amount,
+                        "Approved",
+                    )
+                )
+                continue
+
+            if len(recent_trades) >= self.config.max_trades_per_hour:
                 decisions.append(
                     RiskDecision(
                         trade.symbol, trade.side, False, 0, "Trade limit exceeded"
@@ -41,14 +63,14 @@ class RiskManagerAgent:
                 )
                 continue
 
-            max_trade_amount = portfolio.total_value * self.max_trade_pct
+            max_trade_amount = portfolio.total_value * self.config.max_trade_pct
             allowed_amount = min(trade.amount, max_trade_amount)
 
             exposure = portfolio.holdings.get(trade.symbol, 0)
-            max_exposure = portfolio.total_value * self.max_exposure_pct
+            max_exposure = portfolio.total_value * self.config.max_exposure_pct
             allowed_amount = min(allowed_amount, max_exposure - exposure)
 
-            if portfolio.cash - allowed_amount < portfolio.total_value * self.min_cash_pct:
+            if portfolio.cash - allowed_amount < portfolio.total_value * self.config.min_cash_pct:
                 decisions.append(
                     RiskDecision(
                         trade.symbol, trade.side, False, 0, "Cash reserve violated"
