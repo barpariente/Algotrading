@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timedelta
 
-from agents.risk_agent import RiskManagerAgent
-from agents.models import Portfolio, Trade, RiskConfig
+from agents import RiskManagerAgent
+from models import Portfolio, Trade, RiskConfig
 
 def test_approves_safe_buy():
     portfolio = Portfolio(

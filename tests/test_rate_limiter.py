@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
-from infra.rate_limiter import RateLimiter
-from infra.models import RateLimitConfig
+from rate_limiter import RateLimiter
+from models import RateLimitConfig
 
 def test_allows_first_call():
     limiter = RateLimiter(
