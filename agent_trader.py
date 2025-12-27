@@ -1,24 +1,27 @@
-from services.alpaca_stub import AlpacaStub
-from crew_agents.crew import create_trading_crew
-from agent_state import STATE
-
+import time
+from alpaca_stub import AlpacaStub
+from crew import create_crew
+from state import STATE
 
 def main():
-    alpaca = AlpacaStub(initial_cash=100_000)
-    STATE["portfolio"] = alpaca.get_portfolio()
+    alpaca = AlpacaStub()
+    print("Starting trading bot")
 
-    crew = create_trading_crew()
-    crew.kickoff()
+    while True:
+        STATE["portfolio"] = alpaca.get_portfolio()
+        STATE["signals"] = []
+        STATE["trades"] = []
+        STATE["decisions"] = []
 
-    for decision in STATE.get("decisions", []):
-        if decision.approved:
-            alpaca.submit_trade(
-                trade=decision 
-            )
+        crew = create_crew()
+        crew.kickoff()
 
-    STATE["portfolio"] = alpaca.get_portfolio()
-    print("Final portfolio:", STATE["portfolio"])
+        for d in STATE["decisions"]:
+            if d.approved:
+                alpaca.submit_trade(d)
 
+        print("Portfolio:", alpaca.get_portfolio())
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()
