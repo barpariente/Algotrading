@@ -1,0 +1,5 @@
+alpaca-py
+crewai
+python-dotenv
+requests
+pytest

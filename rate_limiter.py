@@ -1,28 +1,35 @@
+from __future__ import annotations
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from collections import defaultdict
+from typing import Dict, List
+
 from models import RateLimitConfig
 
 
 class RateLimiter:
     def __init__(self, config: RateLimitConfig):
         self.config = config
-        self.calls = defaultdict(list)
+        self.calls: Dict[str, List[datetime]] = {}
 
     def allow(self, key: str, now: datetime) -> bool:
-        times = [
-            t for t in self.calls[key]
-            if t > now - timedelta(days=1)
-        ]
-        self.calls[key] = times
+        history = self.calls.setdefault(key, [])
 
-        if sum(t > now - timedelta(seconds=1) for t in times) >= self.config.per_second:
+        one_second_ago = now - timedelta(seconds=1)
+        one_hour_ago = now - timedelta(hours=1)
+        one_day_ago = now - timedelta(days=1)
+
+        history[:] = [t for t in history if t > one_day_ago]
+
+        per_day = len([t for t in history if t > one_day_ago])
+        per_hour = len([t for t in history if t > one_hour_ago])
+        per_second = len([t for t in history if t > one_second_ago])
+
+        if per_second >= self.config.per_second:
+            return False
+        if per_hour >= self.config.per_hour:
+            return False
+        if per_day >= self.config.per_day:
             return False
 
-        if sum(t > now - timedelta(hours=1) for t in times) >= self.config.per_hour:
-            return False
-
-        if len(times) >= self.config.per_day:
-            return False
-
-        self.calls[key].append(now)
+        history.append(now)
         return True

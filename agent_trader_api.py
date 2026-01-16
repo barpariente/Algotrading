@@ -16,13 +16,13 @@ def main():
 
     print("Fetching real market data (cached)...")
 
-    # 1. agents analyze
+    # agents analyze
     signals = trend_agent(["PLTR", "NFLX", "PLTK"])
 
-    # 2. decision agent proposes trades
+    # decision agent proposes trades
     proposed_trades = decision_agent(signals, portfolio)
 
-    # 3. risk manager approves
+    # risk manager approves
     risk_agent = RiskManagerAgent(RiskConfig())
     decisions = risk_agent.evaluate_trades(
         portfolio=portfolio,
@@ -30,7 +30,7 @@ def main():
         trade_history=[],
     )
 
-    # 4. execute trades (still paper trading)
+    # execute paper trades
     alpaca = AlpacaStub()
     for d in decisions:
         if d.approved:
