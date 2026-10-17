@@ -1,6 +1,5 @@
 from __future__ import annotations
 from crewai import Task
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import os
 
@@ -14,12 +13,21 @@ from agents import RiskManagerAgent, RiskConfig
 from cache import DiskCache
 from rate_limiter import RateLimiter
 from tools import RiskValidationTool
+from strategy import NEWS_CONFIDENCE, TREND_CONFIDENCE, decide_trades, news_action, trend_action
 
 
-_stock_client = StockHistoricalDataClient(
-    api_key=os.getenv("ALPACA_API_KEY"),
-    secret_key=os.getenv("ALPACA_SECRET_KEY"),
-)
+_stock_client = None
+
+
+def _client() -> StockHistoricalDataClient:
+    # Created on first use so importing this module needs no API keys (tests, CI).
+    global _stock_client
+    if _stock_client is None:
+        _stock_client = StockHistoricalDataClient(
+            api_key=os.getenv("ALPACA_API_KEY"),
+            secret_key=os.getenv("ALPACA_SECRET_KEY"),
+        )
+    return _stock_client
 
 _price_cache = DiskCache(".cache")
 _price_limiter = RateLimiter(RateLimitConfig(per_second=1, per_hour=60, per_day=600))
@@ -43,7 +51,7 @@ def _fetch_recent_closes(symbol: str, as_of: datetime, days: int = 5) -> list[fl
         start=start,
         end=end,
     )
-    bars = _stock_client.get_stock_bars(req).df
+    bars = _client().get_stock_bars(req).df
     if bars.empty:
         closes = []
     else:
@@ -61,14 +69,7 @@ def trend_task(agent):
             if len(closes) < 2:
                 continue
 
-            if closes[-1] > closes[0]:
-                action = "BUY"
-            elif closes[-1] < closes[0]:
-                action = "SELL"
-            else:
-                action = "HOLD"
-
-            STATE["signals"].append(Signal(symbol=symbol, action=action, confidence=0.6))
+            STATE["signals"].append(Signal(symbol, trend_action(closes), TREND_CONFIDENCE))
 
         return STATE["signals"]
 
@@ -82,18 +83,8 @@ def news_task(agent):
             if not news:
                 continue
 
-            headlines = [x.get("title", "").lower() for x in news.get("news_results", [])]
-            positive = sum(("beat" in h or "growth" in h or "surge" in h) for h in headlines)
-            negative = sum(("miss" in h or "lawsuit" in h or "loss" in h or "down" in h) for h in headlines)
-
-            if positive > negative:
-                action = "BUY"
-            elif negative > positive:
-                action = "SELL"
-            else:
-                action = "HOLD"
-
-            STATE["signals"].append(Signal(symbol=symbol, action=action, confidence=0.4))
+            headlines = [x.get("title", "") for x in news.get("news_results", [])]
+            STATE["signals"].append(Signal(symbol, news_action(headlines), NEWS_CONFIDENCE))
 
         return STATE["signals"]
 
@@ -102,32 +93,7 @@ def news_task(agent):
 
 def decision_task(agent, context_tasks):
     def run(_):
-        votes = defaultdict(int)
-        for s in STATE["signals"]:
-            votes[s.symbol] += (1 if s.action == "BUY" else -1 if s.action == "SELL" else 0)
-
-        STATE["trades"] = []
-
-        for symbol in {s.symbol for s in STATE["signals"]}:
-            score = sum(
-                s.confidence * (
-                    1 if s.action == "BUY"
-                    else -1 if s.action == "SELL"
-                    else 0
-                )
-                for s in STATE["signals"]
-                if s.symbol == symbol
-            )
-
-            if score >= 0.5:
-                STATE["trades"].append(
-                    Trade(symbol=symbol, side="BUY", amount=5_000)
-                )
-            elif score <= -0.5:
-                STATE["trades"].append(
-                    Trade(symbol=symbol, side="SELL", amount=5_000)
-                )
-
+        STATE["trades"] = decide_trades(STATE["signals"])
         return STATE["trades"]
 
     return Task(
