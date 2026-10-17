@@ -1,8 +1,8 @@
 .venv
-.pytest_cache
 venv
 __pycache__
-.env
 .pytest_cache
+.env
 .cache
-
+.trading_cache
+.DS_Store

@@ -1,5 +1,7 @@
 alpaca-py
 crewai
+diskcache
 python-dotenv
 requests
+yfinance
 pytest

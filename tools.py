@@ -1,3 +1,5 @@
+import ast
+import operator
 import os
 import time
 from functools import wraps
@@ -36,9 +38,36 @@ class TradeCalculatorTool(BaseTool):
     description: str = "Perform financial math. Useful for calculating shares based on price."
 
     def _run(self, expression: str) -> str:
-        # Simple/Safe math evaluation
-        try: return str(eval(expression))
-        except: return "Error in calculation"
+        try:
+            return str(safe_eval(expression))
+        except (ValueError, SyntaxError, ZeroDivisionError):
+            return "Error in calculation"
+
+
+_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.USub: operator.neg,
+    ast.UAdd: operator.pos,
+}
+
+
+def safe_eval(expression: str) -> float:
+    """Evaluate arithmetic only (+ - * / and parentheses). LLM output is never passed to eval()."""
+    def walk(node):
+        if isinstance(node, ast.Expression):
+            return walk(node.body)
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+        if isinstance(node, ast.BinOp) and type(node.op) in _OPERATORS:
+            return _OPERATORS[type(node.op)](walk(node.left), walk(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _OPERATORS:
+            return _OPERATORS[type(node.op)](walk(node.operand))
+        raise ValueError(f"Unsupported expression: {expression}")
+
+    return walk(ast.parse(expression, mode="eval"))
 
 # 3. Alpaca Price Tool (Requirement: Use Stubs/Mocks during dev)
 class StockPriceTool(BaseTool):
